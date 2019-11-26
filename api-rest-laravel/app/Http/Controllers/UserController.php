@@ -41,7 +41,7 @@ class UserController extends Controller
             } else {
                 //validacion pasada correctamente
                 //Cifrar Contraseña
-                $pwd = \password_hash($params->password, PASSWORD_BCRYPT, ['cost' => 4]);
+                $pwd = hash('sha256', $params->password);
 
                 //Crear el usuario
                 $user = new User();
@@ -74,6 +74,48 @@ class UserController extends Controller
     }
     public function login(Request $request)
     {
-        return 'accion de login de usuarios';
+        $jwtAuth = new \JwtAuth();
+
+        //recibir datos por POST
+        $json = $request->input('json', null);
+        $params = \json_decode($json);
+        $params_array = \json_decode($json, true);
+
+        //Validar Datos
+        $validate = \Validator::make($params_array, [
+            'email'         => 'required|email',
+            'password'      => 'required'
+        ]);
+        if ($validate->fails()) {
+            $signup = array(
+                'status'    => 'error',
+                'code'      => 404,
+                'message'   => 'El usuario no se ha podido identificar.',
+                'errors'    => $validate->errors(),
+            );
+        } else {
+            //Cifrar la contraseña
+            $pwd = hash('sha256', $params->password);
+
+            //Devolver token o datos
+            $signup = $jwtAuth->signup($params->email, $pwd);
+            if (!empty($params->gettoken)) {
+                $signup = $jwtAuth->signup($params->email, $pwd, true);
+            }
+        }
+        return response()->json($signup, 200);
+    }
+    public function update(Request $request)
+    {
+        $token = $request->header('Authorization');
+        $jwtAuth = new \JwtAuth();
+        $checkToken = $jwtAuth->checkToken($token);
+
+        if ($checkToken) {
+            echo "<h1>Login correcto</h1>";
+        } else {
+            echo "<h1>Login incorrecto</h1>";
+        }
+        die();
     }
 }
